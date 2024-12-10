@@ -1,0 +1,10 @@
+# Commonly used CMake directories
+/build*/
+/out*/
+
+
+# Visual Studio Code directory
+.vscode/
+
+# Server data directory
+/data/
