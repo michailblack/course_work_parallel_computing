@@ -23,14 +23,19 @@ FileSystem::FileID FileSystem::LoadFile(const std::string& path)
     fileStream.close();
 
     const FileSystem::FileID fileID{ std::hash<std::string>{}(path) };
-    m_WatchedFileContents[fileID] = fileContent;
-    m_WatchedFilePaths[fileID] = path;
+    {
+        WriteLock _{ m_ObjectLock };
+        m_WatchedFileContents[fileID] = fileContent;
+        m_WatchedFilePaths[fileID] = path;
+    }
 
     return fileID;
 }
 
-const std::string_view FileSystem::GetContent(FileID fileID) const
+std::string_view FileSystem::GetContent(FileID fileID) const
 {
+    ReadLock _{ m_ObjectLock };
+
     auto it{ m_WatchedFileContents.find(fileID) };
     if (it != m_WatchedFileContents.end())
         return it->second;
@@ -38,11 +43,28 @@ const std::string_view FileSystem::GetContent(FileID fileID) const
     return {};
 }
 
-const std::string_view FileSystem::GetPath(FileID fileID) const
+std::string_view FileSystem::GetPath(FileID fileID) const
 {
+    ReadLock _{ m_ObjectLock };
+
     auto it{ m_WatchedFilePaths.find(fileID) };
     if (it != m_WatchedFilePaths.end())
         return it->second;
 
     return {};
+}
+
+bool FileSystem::FileIsLoaded(FileID fileID) const
+{
+    ReadLock _{ m_ObjectLock };
+
+    return m_WatchedFileContents.contains(fileID);
+}
+
+bool FileSystem::FileIsLoaded(const std::string& path) const
+{
+    ReadLock _{ m_ObjectLock };
+
+    const FileSystem::FileID fileID{ std::hash<std::string>{}(path) };
+    return m_WatchedFileContents.contains(fileID);
 }

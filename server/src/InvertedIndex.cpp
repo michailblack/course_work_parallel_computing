@@ -2,18 +2,22 @@
 
 #include <algorithm>
 
-void InvertedIndex::AddUnsafe(FileSystem::FileID fileID, std::string_view content)
+void InvertedIndex::Add(FileSystem::FileID fileID, std::string_view content)
 {
     std::vector<std::string> tokens{ Tokenize(content) };
 
     tokens.erase(std::unique(tokens.begin(), tokens.end()), tokens.end());
     std::sort(tokens.begin(), tokens.end());
 
-    for (const auto& token : tokens)
-        m_Index[token].push_back(fileID);
+    {
+        WriteLock _{ m_ObjectLock };
+
+        for (const auto& token : tokens)
+            m_Index[token].push_back(fileID);
+    }
 }
 
-std::vector<FileSystem::FileID> InvertedIndex::SearchUnsafe(std::string_view query) const
+std::vector<FileSystem::FileID> InvertedIndex::Search(std::string_view query) const
 {
     std::vector<std::string> tokens{ Tokenize(query) };
 
@@ -21,21 +25,25 @@ std::vector<FileSystem::FileID> InvertedIndex::SearchUnsafe(std::string_view que
 
     std::unordered_map<FileSystem::FileID, uint32_t> filesOccurenceCount{};
 
-    for (const auto& token : tokens)
     {
-        const auto it{ m_Index.find(token) };
+        ReadLock _{ m_ObjectLock };
 
-        if (it == m_Index.end())
-            continue;
-
-        const std::vector<FileSystem::FileID>& fileIDs{ it->second };
-
-        for (const auto& fileID : fileIDs)
+        for (const auto& token : tokens)
         {
-            if (filesOccurenceCount.find(fileID) == filesOccurenceCount.end())
-                filesOccurenceCount[fileID] = 1;
-            else
-                ++filesOccurenceCount[fileID];
+            const auto it{ m_Index.find(token) };
+
+            if (it == m_Index.end())
+                continue;
+
+            const std::vector<FileSystem::FileID>& fileIDs{ it->second };
+
+            for (const auto& fileID : fileIDs)
+            {
+                if (filesOccurenceCount.find(fileID) == filesOccurenceCount.end())
+                    filesOccurenceCount[fileID] = 1;
+                else
+                    ++filesOccurenceCount[fileID];
+            }
         }
     }
 

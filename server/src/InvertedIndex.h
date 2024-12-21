@@ -1,6 +1,7 @@
 #pragma once
 #include "FileSystem.h"
 
+#include <shared_mutex>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -8,14 +9,21 @@
 class InvertedIndex
 {
 public:
-    void AddUnsafe(FileSystem::FileID fileID, std::string_view content);
+    using ReadWriteLock = std::shared_mutex;
+    using ReadLock = std::shared_lock<ReadWriteLock>;
+    using WriteLock = std::unique_lock<ReadWriteLock>;
 
-    std::vector<FileSystem::FileID> SearchUnsafe(std::string_view query) const;
+public:
+    void Add(FileSystem::FileID fileID, std::string_view content);
+
+    std::vector<FileSystem::FileID> Search(std::string_view query) const;
 
 private:
     static std::vector<std::string> Tokenize(std::string_view content);
     static std::string              Normalize(const std::string_view token);
 
 private:
+    mutable ReadWriteLock m_ObjectLock{};
+
     std::unordered_map<std::string, std::vector<FileSystem::FileID>> m_Index;
 };
