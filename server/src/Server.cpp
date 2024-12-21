@@ -1,4 +1,14 @@
 #include "Server.h"
+#include <algorithm>
+
+namespace Utils
+{
+    namespace
+    {
+        void RecvAll(SOCKET socket, char* buffer, uint32_t length);
+        void SendAll(SOCKET socket, const char* buffer, uint32_t length);
+    } // namespace
+} // namespace Utils
 
 Server::Server()
 {
@@ -164,15 +174,11 @@ void Server::UpdateInvertedIndex()
     const uint32_t filesCount{ static_cast<uint32_t>(filePaths.size()) };
     const uint32_t filesPerWorkerCount{ filesCount / freeWorkersCount };
 
-    std::atomic<uint32_t> filesProcessedCount{ 0u };
-
     const auto& workerFileLoadRoutine{
-        [this, &filesProcessedCount, filePaths = std::move(filePaths)](uint32_t beginIndex, uint32_t filesCount) {
+        [this, filePaths = std::move(filePaths)](uint32_t beginIndex, uint32_t filesCount) {
             for (const auto& filePath : filePaths | std::views::drop(beginIndex) | std::views::take(filesCount))
             {
-                LOG_TRACE_TAG("SERVER", "Loading file: {0}", filePath);
-
-                ++filesProcessedCount;
+                // LOG_TRACE_TAG("SERVER", "Loading file: {0}", filePath);
 
                 const FileSystem::FileID fileID{ m_FileSystem.LoadFile(filePath) };
                 m_InvertedIndex.Add(fileID, m_FileSystem.GetContent(fileID));
@@ -189,4 +195,137 @@ void Server::UpdateInvertedIndex()
 
 void Server::ProcessClient(SOCKET clientSocket)
 {
+    sockaddr_in clientAddr{};
+    int         clientAddrSize{ sizeof(clientAddr) };
+    char        clientIP[INET_ADDRSTRLEN]{};
+    uint16_t    clientPort{ 0u };
+
+    if (getpeername(clientSocket, reinterpret_cast<sockaddr*>(&clientAddr), &clientAddrSize) == 0)
+    {
+        // Convert the client's IP address to a string
+        inet_ntop(AF_INET, &(clientAddr.sin_addr), clientIP, INET_ADDRSTRLEN);
+        clientPort = ntohs(clientAddr.sin_port);
+
+        LOG_INFO_TAG("SERVER", "Connected to the client {0}:{1}", clientIP, clientPort);
+    }
+    else
+    {
+        closesocket(clientSocket);
+        LOG_ERROR_TAG("SERVER", "Failed to get the client information: {0}\nClosed the client socket", WSAGetLastError());
+        return;
+    }
+
+    try
+    {
+        while (true)
+        {
+            // Step 1
+            // Receive the length of the query string (4 bytes, network byte order)
+            uint32_t requestLength{ 0u };
+            Utils::RecvAll(clientSocket, reinterpret_cast<char*>(&requestLength), sizeof(requestLength));
+            const uint32_t requestLengthNetworkOrder{ htonl(requestLength) };
+
+            if (requestLengthNetworkOrder == 0u)
+                break;
+
+            // Step 2
+            // Receive the query string based on the received length
+            std::string request(requestLengthNetworkOrder, '\0');
+            Utils::RecvAll(clientSocket, request.data(), requestLengthNetworkOrder);
+
+            // Step 3
+            // Search the query in the inverted index
+            const auto&              foundFiles{ m_InvertedIndex.Search(request) };
+            std::vector<std::string> foundFilesPaths{};
+            foundFilesPaths.reserve(foundFiles.size());
+
+            std::ranges::for_each(foundFiles, [this, &foundFilesPaths](const FileSystem::FileID fileID) { foundFilesPaths.emplace_back(m_FileSystem.GetPath(fileID)); });
+
+            // Step 4
+            // Send the number of the found files (4 bytes, network byte order)
+            const uint32_t resultsCount{ static_cast<uint32_t>(foundFilesPaths.size()) };
+            const uint32_t resultsCountNetworkOrder{ htonl(resultsCount) };
+            Utils::SendAll(clientSocket, reinterpret_cast<const char*>(&resultsCountNetworkOrder), sizeof(resultsCountNetworkOrder));
+
+            // Step 5
+            // Send each found file path
+            for (const std::string& filePath : foundFilesPaths)
+            {
+                const uint32_t filePathLength{ static_cast<uint32_t>(filePath.size()) };
+                const uint32_t filePathLengthNetworkOrder{ htonl(filePathLength) };
+
+                Utils::SendAll(clientSocket, reinterpret_cast<const char*>(&filePathLengthNetworkOrder), sizeof(filePathLengthNetworkOrder));
+
+                if (filePathLength == 0u)
+                    continue;
+
+                Utils::SendAll(clientSocket, filePath.data(), filePathLength);
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR_TAG("SERVER", "Client {0}:{1} exception: {2}", clientIP, clientPort, e.what());
+    }
+
+    // Step 6
+    // Close the client socket
+    closesocket(clientSocket);
+    LOG_INFO_TAG("SERVER", "Closed the client socket {0}:{1}", clientIP, clientPort);
 }
+
+namespace Utils
+{
+    namespace
+    {
+        void RecvAll(SOCKET socket, char* buffer, uint32_t length)
+        {
+            uint32_t totalBytesReceived{ 0u };
+            while (totalBytesReceived < length)
+            {
+                const int bytesReceived{ recv(socket, buffer + totalBytesReceived, static_cast<int>(length - totalBytesReceived), 0) };
+                if (bytesReceived == SOCKET_ERROR)
+                {
+                    const int error{ WSAGetLastError() };
+                    switch (error)
+                    {
+                        case WSAEWOULDBLOCK:
+                            continue;
+                        default:
+                            throw std::runtime_error(std::format("Recv failed: {0}", error).c_str());
+                    }
+                }
+                else if (bytesReceived == 0) // The connection has been gracefully closed
+                {
+                    memset(buffer, 0, length);
+                    return;
+                }
+
+                totalBytesReceived += bytesReceived;
+            }
+        }
+
+        void SendAll(SOCKET socket, const char* buffer, uint32_t length)
+        {
+            uint32_t totalBytesSent{ 0u };
+            while (totalBytesSent < length)
+            {
+                const int bytesSent{ send(socket, buffer + totalBytesSent, static_cast<int>(length - totalBytesSent), 0) };
+                if (bytesSent == SOCKET_ERROR)
+                {
+                    const int error{ WSAGetLastError() };
+                    switch (error)
+                    {
+                        case WSAEWOULDBLOCK:
+                            continue;
+                        default:
+                            throw std::runtime_error(std::format("Send failed: {0}", error).c_str());
+                    }
+                }
+
+                totalBytesSent += bytesSent;
+            }
+        }
+
+    } // namespace
+} // namespace Utils

@@ -1,27 +1,28 @@
+#include "Log.h"
+#include "Server.h"
+
 #include <exception>
 #include <iostream>
 
-#include "Server.h"
-
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
     if (argc != 3)
     {
-        std::cerr << "Usage: " << argv[0] << " <files_directory> <port>" << std::endl;
+        std::cerr << "Usage: [server] <files_directory> <port>" << std::endl;
         return EXIT_FAILURE;
     }
 
-    std::string filesDirectory{ argv[1] };
-    uint16_t    port{ static_cast<uint16_t>(std::stoi(argv[2])) };
-
     try
     {
+        std::string filesDirectory{ argv[1] };
+        uint16_t    port{ static_cast<uint16_t>(std::stoi(argv[2])) };
+
         Server server{};
         server.Start(filesDirectory, port);
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Exception: " << e.what() << std::endl;
+        LOG_CRITICAL_TAG("SERVER", "Exception: {0}", e.what());
         return EXIT_FAILURE;
     }
 }

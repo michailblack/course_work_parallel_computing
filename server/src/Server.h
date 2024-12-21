@@ -3,9 +3,9 @@
 #include "InvertedIndex.h"
 #include "ThreadPool.h"
 
-#include <WS2tcpip.h>
-#include <Winsock2.h>
 #include <chrono>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 enum ServerTaskPriority : uint8_t
 {

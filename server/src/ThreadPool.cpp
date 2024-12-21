@@ -127,11 +127,13 @@ void ThreadPool::Routine()
         {
             task();
         }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR_TAG("THREADPOOL", "An exception was thrown in a task: {0}", e.what());
+        }
         catch (...)
         {
             LOG_ERROR_TAG("THREADPOOL", "An exception was thrown in a task.");
-            m_BusyWorkersCount.fetch_sub(1u);
-            throw;
         }
 
         m_BusyWorkersCount.fetch_sub(1u);
