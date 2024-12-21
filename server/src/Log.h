@@ -1,6 +1,12 @@
 #pragma once
 #include <spdlog/spdlog.h>
 
+#include <string_view>
+
+#ifndef NOMINMAX
+    #define NOMINMAX
+#endif
+
 #include <Windows.h>
 
 class Log

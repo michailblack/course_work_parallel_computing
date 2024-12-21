@@ -9,6 +9,10 @@ file(GLOB_RECURSE server_sources src/*.cpp)
 
 add_executable(${PROJECT_NAME} ${server_sources})
 
+target_precompile_headers(${PROJECT_NAME} PRIVATE
+    ${PROJECT_SOURCE_DIR}/pch.h
+)
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/spdlog/include
 )

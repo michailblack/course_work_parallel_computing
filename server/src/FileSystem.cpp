@@ -1,9 +1,5 @@
 #include "FileSystem.h"
 
-#include "Log.h"
-
-#include <fstream>
-
 FileSystem::FileID FileSystem::LoadFile(const std::string& path)
 {
     std::ifstream fileStream{ path, std::ios::in | std::ios::ate };

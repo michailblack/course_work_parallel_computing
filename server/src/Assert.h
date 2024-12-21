@@ -1,5 +1,4 @@
 #pragma once
-#include "Log.h"
 
 #ifdef ENABLE_ASSERTS
     #define ASSERT(condition, ...)                                                        \

@@ -1,7 +1,5 @@
 #include "ThreadPool.h"
 
-#include "Log.h"
-
 void ThreadPool::Create(uint32_t workersCount)
 {
     WriteLock _{ m_ObjectLock };

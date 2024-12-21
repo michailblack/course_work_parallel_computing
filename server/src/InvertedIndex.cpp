@@ -1,7 +1,5 @@
 #include "InvertedIndex.h"
 
-#include <algorithm>
-
 void InvertedIndex::Add(FileSystem::FileID fileID, std::string_view content)
 {
     std::vector<std::string> tokens{ Tokenize(content) };
