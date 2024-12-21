@@ -25,4 +25,15 @@ add_compile_options(
 	$<$<CXX_COMPILER_ID:MSVC>:/Zc:preprocessor>
 )
 
+# Find Cppcheck static analysis tool
+find_program(CPPCHECK_EXECUTABLE cppcheck)
+
+if (CPPCHECK_EXECUTABLE)
+    message(STATUS "Cppcheck found: ${CPPCHECK_EXECUTABLE}")
+	set(CMAKE_CXX_CPPCHECK "cppcheck;--enable=warning,style,performance,portability;--inconclusive;--verbose;--check-level=exhaustiv;--language=c++;--std=c++20")
+else()
+    message(WARNING "Cppcheck not found. Static analysis will be skipped.")
+endif()
+
 add_subdirectory(server)
+add_subdirectory(clients/cpp)
