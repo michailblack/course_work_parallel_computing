@@ -3,8 +3,8 @@
 /out*/
 
 
-# Visual Studio Code directory
-.vscode/
+# VSCode directories
+.cache/
 
 # Server data directory
-/data/
+data/
