@@ -43,10 +43,16 @@ public:
         ReadLock _{ m_ObjectLock };
         return IsWorkingUnsafe();
     }
+
     bool IsWorkingUnsafe() const noexcept
     {
         return m_IsInitialized && !m_IsTerminated && !m_IsPaused;
     }
+
+    // Safe to call after Start()
+    uint32_t GetWorkersCount() const noexcept { return m_Workers.size(); }
+    uint32_t GetBusyWorkersCount() const noexcept { return m_BusyWorkersCount.load(); }
+    uint32_t GetFreeWorkersCount() const noexcept { return GetWorkersCount() - m_BusyWorkersCount.load(); }
 
 private:
     using PriorityTask = std::pair<uint8_t, std::function<void()>>;
@@ -71,6 +77,8 @@ private:
     std::vector<std::thread> m_Workers{};
 
     std::priority_queue<PriorityTask, std::vector<PriorityTask>, TaskComparator> m_Tasks{};
+
+    std::atomic<uint32_t> m_BusyWorkersCount{ 0u };
 
     bool m_IsInitialized{ false };
     bool m_IsPaused{ true };

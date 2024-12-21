@@ -1,5 +1,7 @@
 #include "ThreadPool.h"
 
+#include "Log.h"
+
 void ThreadPool::Create(uint32_t workersCount)
 {
     WriteLock _{ m_ObjectLock };
@@ -121,16 +123,19 @@ void ThreadPool::Routine()
                 return;
         }
 
-        if (task)
+        m_BusyWorkersCount.fetch_add(1u);
+
+        try
         {
-            try
-            {
-                task();
-            }
-            catch (...)
-            {
-                throw;
-            }
+            task();
         }
+        catch (...)
+        {
+            LOG_ERROR_TAG("THREADPOOL", "An exception was thrown in a task.");
+            m_BusyWorkersCount.fetch_sub(1u);
+            throw;
+        }
+
+        m_BusyWorkersCount.fetch_sub(1u);
     }
 }
