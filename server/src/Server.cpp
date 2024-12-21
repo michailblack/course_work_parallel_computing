@@ -58,6 +58,17 @@ void Server::CreateListenSocket()
         throw std::runtime_error("Socket failed");
     }
 
+    u_long mode{ 1u }; // 1u - non-blocking, 0u - blocking
+    iResult = ioctlsocket(m_ListenSocket, FIONBIO, &mode);
+    if (iResult == SOCKET_ERROR)
+    {
+        LOG_CRITICAL_TAG("SERVER", "ioctlsocket failed: {0}", WSAGetLastError());
+        closesocket(m_ListenSocket);
+        WSACleanup();
+
+        throw std::runtime_error("ioctlsocket failed");
+    }
+
     sockaddr_in serverAddress{};
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr = INADDR_ANY;
@@ -118,7 +129,15 @@ void Server::Routine()
         SOCKET clientSocket{ accept(m_ListenSocket, nullptr, nullptr) };
         if (clientSocket == INVALID_SOCKET)
         {
-            LOG_ERROR_TAG("SERVER", "Accept failed: {0}", WSAGetLastError());
+            const int error{ WSAGetLastError() };
+            switch (error)
+            {
+                case WSAEWOULDBLOCK:
+                    break;
+                default:
+                    LOG_ERROR_TAG("SERVER", "Accept failed: {0}", error);
+                    break;
+            }
             continue;
         }
 
