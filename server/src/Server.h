@@ -5,11 +5,13 @@
 
 #include <WS2tcpip.h>
 #include <Winsock2.h>
+#include <chrono>
 
 enum ServerTaskPriority : uint8_t
 {
     SERVER_TASK_PRIORITY_NONE = 0u,
     SERVER_TASK_PRIORITY_HANDLE_CLIENT,
+    SERVER_TASK_PRIORITY_UPDATE_INVERTED_INDEX,
 };
 
 class Server
@@ -30,8 +32,9 @@ public:
 
 private:
     void CreateListenSocket();
-    void LoadFiles();
     void Routine();
+    void RemoveFinishedTasksFutures();
+    void UpdateInvertedIndex();
     void ProcessClient(SOCKET clientSocket);
 
 private:
@@ -39,7 +42,8 @@ private:
     FileSystem    m_FileSystem{};
     InvertedIndex m_InvertedIndex{};
 
-    std::vector<std::future<void>> m_TasksFutures{};
+    std::vector<std::future<void>> m_ClientTasksFutures{};
+    std::vector<std::future<void>> m_UpdateIndexFutures{};
 
     std::string m_FilesDirectory{};
 
@@ -47,4 +51,8 @@ private:
     uint16_t m_Port{ 0u };
 
     bool m_IsRunning{ false };
+
+    std::chrono::time_point<std::chrono::steady_clock> m_LastIndexUpdateTimePoint{ std::chrono::steady_clock::now() };
+    const uint32_t                                     m_IndexUpdateIntervalMS{ 5000u };
+    uint32_t                                           m_ElapsedAfterLastIndexUpdateMS{ m_IndexUpdateIntervalMS };
 };
