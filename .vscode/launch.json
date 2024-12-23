@@ -10,7 +10,7 @@
             "name": "Start Server",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
-                "./data",
+                ".\\data",
                 "8080"
             ],
             "cwd": "${workspaceFolder}",

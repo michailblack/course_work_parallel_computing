@@ -30,10 +30,10 @@ find_program(CPPCHECK_EXECUTABLE cppcheck)
 
 if (CPPCHECK_EXECUTABLE)
     message(STATUS "Cppcheck found: ${CPPCHECK_EXECUTABLE}")
-	set(CMAKE_CXX_CPPCHECK "cppcheck;--enable=warning,style,performance,portability;--inconclusive;--verbose;--check-level=exhaustiv;--language=c++;--std=c++20")
+	set(CMAKE_CXX_CPPCHECK "cppcheck;--enable=warning,style,performance,portability;--inconclusive;--verbose;--check-level=exhaustive;--language=c++;--std=c++20")
 else()
     message(WARNING "Cppcheck not found. Static analysis will be skipped.")
 endif()
 
 add_subdirectory(server)
-add_subdirectory(clients/cpp)
+add_subdirectory(client)
