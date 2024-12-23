@@ -36,6 +36,8 @@ private:
     void RemoveFinishedTasksFutures();
     void UpdateInvertedIndex();
     void ProcessClient(SOCKET clientSocket);
+    void HandleSocketClient(SOCKET clientSocket);
+    void HandleHTTPClient(SOCKET clientSocket);
 
 private:
     ThreadPool    m_ThreadPool{};
