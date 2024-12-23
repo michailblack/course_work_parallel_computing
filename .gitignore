@@ -2,6 +2,8 @@
 /build*/
 /out*/
 
+# Python directories
+__pycache__/
 
 # VSCode directories
 .cache/
